@@ -21,6 +21,7 @@ import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 
+import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
 
 
@@ -74,16 +75,15 @@ public class MainActivity extends AppCompatActivity  implements SensorEventListe
 
     private MediaCodec mCodec = null; // кодер
     Surface mEncoderSurface; // Surface как вход данных для кодера
-    BufferedOutputStream outputStream;
+
     ByteBuffer outPutByteBuffer;
     byte[] outDate = null;
     DatagramSocket udpSocket;
-    String ip_address = "192.168.1.84";
+    String ip_address = "192.168.1.85";
     InetAddress address;
-    int port = 40001;
-    static boolean isStreaming = false;
-    boolean bufferReady = false;
+    int port = 40002;
 
+    boolean flashlight = false;
 
     public static ServerSocket ss2;
 
@@ -144,6 +144,33 @@ public class MainActivity extends AppCompatActivity  implements SensorEventListe
     }
 
 
+
+    private void openUDPsocket()
+
+    {
+        try {
+            udpSocket = new DatagramSocket();
+
+            Log.i(LOG_TAG, "  создали udp сокет");
+
+        } catch (
+                SocketException e) {
+            Log.i(LOG_TAG, " не создали udp сокет");
+        }
+
+        try {
+            address = InetAddress.getByName(ip_address);
+            Log.i(LOG_TAG, "  есть адрес");
+        } catch (Exception e) {
+
+
+        }
+
+
+
+
+
+    }
 
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
@@ -212,31 +239,14 @@ public class MainActivity extends AppCompatActivity  implements SensorEventListe
             public void onClick(View v) {
 
 
-                try {
-                    udpSocket = new DatagramSocket();
-
-                    Log.i(LOG_TAG, "  создали udp сокет");
-
-                } catch (
-                        SocketException e) {
-                    Log.i(LOG_TAG, " не создали udp сокет");
-                }
-
-                try {
-                    address = InetAddress.getByName(ip_address);
-                    Log.i(LOG_TAG, "  есть адрес");
-                } catch (Exception e) {
 
 
-                }
-
-                if(mCodec==null){
                     setUpMediaCodec();
-                }
+
                 if (myCameras[CAMERA1] != null) {
                     if (!myCameras[CAMERA1].isOpen()) myCameras[CAMERA1].openCamera();
                 }
-
+             //   new ServerCreation().execute();// запускаем сервер для отправки файлов
 
             }
         });
@@ -246,12 +256,23 @@ public class MainActivity extends AppCompatActivity  implements SensorEventListe
             public void onClick(View v) {
 
 
+                //  здесь будем включать фары
+
+                if (!flashlight)
                 {
-                    isStreaming = true;
+                    flashlight=true; // зажигаем фару
 
-                    new ServerCreation().execute();// запускаем сервер для отправки файлов
+                    myCameras[CAMERA1].Toggle_light(flashlight);
 
-                    Toast.makeText(MainActivity.this, " стримим видео", Toast.LENGTH_SHORT).show();
+                }
+                else
+                {
+
+                    flashlight=false; // гасим фару
+                    myCameras[CAMERA1].Toggle_light(flashlight);
+
+
+
                 }
 
 
@@ -263,7 +284,7 @@ public class MainActivity extends AppCompatActivity  implements SensorEventListe
             @Override
             public void onClick(View v) {
 
-                isStreaming = false;
+
                 if (myCameras[CAMERA1] != null) {
                     myCameras[CAMERA1].stopStreamingVideo();
                 }
@@ -277,9 +298,16 @@ public class MainActivity extends AppCompatActivity  implements SensorEventListe
 
 
 
-
+        openUDPsocket();
 
         setUpMediaCodec();
+
+
+
+
+
+
+
 
 
         mCameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
@@ -399,7 +427,46 @@ public class MainActivity extends AppCompatActivity  implements SensorEventListe
             mCameraID = cameraID;
 
         }
+        private void Toggle_light (boolean flashlight)
 
+        {
+            if(flashlight & mPreviewBuilder!=null) {
+
+
+
+                mPreviewBuilder.set(CaptureRequest.FLASH_MODE, CameraMetadata.FLASH_MODE_TORCH);
+                try {
+
+                    mSession.setRepeatingRequest(mPreviewBuilder.build(), null, mBackgroundHandler);
+                } catch (Exception e) {
+
+
+
+
+                }
+            }
+
+            if(!flashlight & mPreviewBuilder!=null)
+            {
+
+                mPreviewBuilder.set(CaptureRequest.FLASH_MODE,  CameraMetadata.FLASH_MODE_OFF);
+
+
+                try {
+
+
+                    mSession.setRepeatingRequest(mPreviewBuilder.build(), null, mBackgroundHandler);
+                }
+                catch (Exception e)
+                {
+
+
+                }
+
+            }
+
+
+        }
 
         private CameraDevice.StateCallback mCameraCallback = new CameraDevice.StateCallback() {
 
@@ -467,21 +534,20 @@ public class MainActivity extends AppCompatActivity  implements SensorEventListe
         public void stopStreamingVideo() {
 
 
-           if (mCameraDevice!=null & mCodec!= null) {
-               try {
-                   mSession.stopRepeating();
-                   mSession.abortCaptures();
-               } catch (CameraAccessException e) {
-                   e.printStackTrace();
-               }
-               // Stop recording
-               //
-               mCodec.stop();
-               mCodec.release();
-               //mEncoderSurface.release();
+            if (mCameraDevice != null & mCodec != null) {
 
-               udpSocket.close();
-           }
+                try {
+                    mSession.stopRepeating();
+                    mSession.abortCaptures();
+                } catch (CameraAccessException e) {
+                    e.printStackTrace();
+                }
+
+                mCodec.stop();
+                mCodec.release();
+                mEncoderSurface.release();
+                closeCamera();
+            }
         }
 
 
@@ -525,16 +591,6 @@ public class MainActivity extends AppCompatActivity  implements SensorEventListe
 
     private void setUpMediaCodec() {
 
-        /*
-        File mFile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "test3.h264");;
-
-        try {
-            outputStream = new BufferedOutputStream(new FileOutputStream(mFile));
-            Log.i("Encoder", "outputStream initialized");
-        } catch (Exception e){
-            e.printStackTrace();
-        }
-*/
 
         try {
             mCodec = MediaCodec.createEncoderByType("video/avc"); // H264 кодек
@@ -581,9 +637,59 @@ public class MainActivity extends AppCompatActivity  implements SensorEventListe
             outPutByteBuffer = mCodec.getOutputBuffer(index);
             outDate = new byte[info.size];
             outPutByteBuffer.get(outDate);
-            bufferReady=true;
-            // Log.i(LOG_TAG, " outDate.length : " + outDate.length);
 
+
+            int count =0;
+
+            int temp =outDate.length ;
+
+            do {//кромсаем на небольше килобайта
+
+                byte[] ds;
+
+                temp = temp-1024;
+
+                if(temp>=0)
+                { ds = new byte[1024];}
+                else
+                { ds = new byte[temp+1024];}
+
+
+                for(int i =0;i<ds.length;i++)
+                {
+                    ds[i]=outDate[i+1024*count];
+
+                }
+
+                count=count+1;
+
+
+                try {
+                   // Log.i(LOG_TAG, " outDate.length : " + ds.length);
+                    DatagramPacket packet = new DatagramPacket(ds, ds.length, address, port);
+                    udpSocket.send(packet);
+                } catch (IOException e) {
+                    Log.i(LOG_TAG, " не отправился UDP пакет");
+                }
+
+
+
+            }
+            while (temp>=0);
+
+
+
+
+
+
+
+
+
+
+
+
+            // Log.i(LOG_TAG, " outDate.length : " + outDate.length);
+/*
             try {
                 DatagramPacket packet = new DatagramPacket(outDate, outDate.length, address, port);
                 udpSocket.send(packet);
@@ -592,7 +698,7 @@ public class MainActivity extends AppCompatActivity  implements SensorEventListe
             }
 
 
-            /*
+
             try {
                 Log.d(LOG_TAG, " outDate.length : " + outDate.length);
                 outputStream.write(outDate, 0, outDate.length);
@@ -679,7 +785,7 @@ class ServerCreation extends AsyncTask<Void, Void, Void> {
 
 
 
-            MainActivity.ss2 = new ServerSocket(40002);// порт для передачи показаний датчиков
+            MainActivity.ss2 = new ServerSocket(40001);// порт для передачи показаний датчиков
 
 
             Log.i(MainActivity.LOG_TAG, "Пробуем сервак");
@@ -718,7 +824,7 @@ class HTTP_Server_Calling2 extends Thread// раз в секунду дерга�
 
     public void run() {
 
-      while (MainActivity.isStreaming)
+
 
         {
             try {
@@ -745,3 +851,5 @@ class HTTP_Server_Calling2 extends Thread// раз в секунду дерга�
 
 
 }
+
+
