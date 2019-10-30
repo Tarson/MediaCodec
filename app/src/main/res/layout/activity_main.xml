@@ -31,13 +31,13 @@
             android:id="@+id/button1"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="КАМЕРА ПЕРЕДНЯЯ" />
+            android:text="ВКЛЮЧИТЬ КАМЕРУ И НАЧАТЬ СТРИМ" />
 
         <Button
             android:id="@+id/button2"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="НАЧАТЬ СТРИМ" />
+            android:text="ВКЛ/ВЫКЛ ФАРУ" />
 
         <Button
             android:id="@+id/button3"

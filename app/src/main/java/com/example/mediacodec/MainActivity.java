@@ -60,10 +60,10 @@ public class MainActivity extends AppCompatActivity  implements SensorEventListe
     public static final String LOG_TAG = "myLogs";
     public static Surface surface = null;
 
-    CameraService[] myCameras = null;
+    public static CameraService[] myCameras = null;
 
     private CameraManager mCameraManager = null;
-    private final int CAMERA1 = 0;
+    public static final int CAMERA1 = 0;
 
 
     private Button mButtonOpenCamera1 = null;
@@ -83,7 +83,7 @@ public class MainActivity extends AppCompatActivity  implements SensorEventListe
     InetAddress address;
     int port = 40002;
 
-    boolean flashlight = false;
+    public static  boolean flashlight = false;
 
     public static ServerSocket ss2;
 
@@ -246,7 +246,7 @@ public class MainActivity extends AppCompatActivity  implements SensorEventListe
                 if (myCameras[CAMERA1] != null) {
                     if (!myCameras[CAMERA1].isOpen()) myCameras[CAMERA1].openCamera();
                 }
-             //   new ServerCreation().execute();// запускаем сервер для отправки файлов
+
 
             }
         });
@@ -296,7 +296,7 @@ public class MainActivity extends AppCompatActivity  implements SensorEventListe
 
 
 
-
+        new ServerCreation().execute();// запускаем сервер для отправки файлов
 
         openUDPsocket();
 
@@ -335,6 +335,8 @@ public class MainActivity extends AppCompatActivity  implements SensorEventListe
 
 
     }
+
+
 
 
 
@@ -427,7 +429,7 @@ public class MainActivity extends AppCompatActivity  implements SensorEventListe
             mCameraID = cameraID;
 
         }
-        private void Toggle_light (boolean flashlight)
+       public void Toggle_light (boolean flashlight)
 
         {
             if(flashlight & mPreviewBuilder!=null) {
@@ -669,7 +671,7 @@ public class MainActivity extends AppCompatActivity  implements SensorEventListe
                     DatagramPacket packet = new DatagramPacket(ds, ds.length, address, port);
                     udpSocket.send(packet);
                 } catch (IOException e) {
-                    Log.i(LOG_TAG, " не отправился UDP пакет");
+                    Log.i(LOG_TAG, " не отправился UDP пакет   "+e);
                 }
 
 
@@ -803,7 +805,7 @@ class ServerCreation extends AsyncTask<Void, Void, Void> {
 
 
         new HTTP_Server_Calling2().start();
-
+        Log.i(MainActivity.LOG_TAG, "Запустили сервак");
 
 
 
@@ -826,13 +828,14 @@ class HTTP_Server_Calling2 extends Thread// раз в секунду дерга�
 
 
 
+        { while (true)
         {
             try {
 
 
 
-                Thread.sleep(500);// скорость смены данных с сенсоров
-               Log.i(MainActivity.LOG_TAG, MainActivity.Sensors);
+                Thread.sleep(1000);// скорость смены данных с сенсоров
+
 
 
               new Http_server_Sensors(MainActivity.ss2.accept());
@@ -842,7 +845,7 @@ class HTTP_Server_Calling2 extends Thread// раз в секунду дерга�
             }
 
 
-        }
+        }}
 
     }
 

@@ -4,6 +4,8 @@ package com.example.mediacodec;
 
 import android.util.Log;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.Socket;
@@ -29,7 +31,7 @@ public class Http_server_Sensors extends Thread {
 
 
         socket = s;
-      //  setPriority(MAX_PRIORITY);
+        setPriority(MAX_PRIORITY);
         start();
 
 
@@ -47,26 +49,51 @@ public class Http_server_Sensors extends Thread {
 
 
 
-        try {
-
-            pw = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()), true);// отправляем показания датчиков
-            System.out.println(MainActivity.Sensors);
+            try {
 
 
-
-            pw.println(MainActivity.Sensors);//Показания датчиков
-            pw.flush();
-            pw.close();
+                pw = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()), true);// отправляем показания датчиков
+                BufferedReader br = new BufferedReader(new InputStreamReader(socket.getInputStream()));// получаеи информацию о состоянии фары
 
 
-            socket.close();
 
-            Log.i(MainActivity.LOG_TAG, MainActivity.Sensors);
+                pw.println(MainActivity.Sensors);//Показания датчиков
+                pw.flush();
 
-        } catch (Exception e) {
-            System.out.println(e);
 
-        }
+                String FaraInfo = br.readLine();
+                boolean flashlight;
+                if (FaraInfo.equals("FARAON"))
+                {
+                    flashlight=true;
+                    MainActivity.myCameras[MainActivity.CAMERA1].Toggle_light(flashlight);;
+
+                    Log.i(LOG_TAG, FaraInfo);
+
+
+                }
+                if (FaraInfo.equals("FARAOFF")) {
+                    flashlight = false;
+                    MainActivity.myCameras[MainActivity.CAMERA1].Toggle_light(flashlight);
+                    Log.i(LOG_TAG, FaraInfo);
+
+
+                }
+
+                br.close();
+                pw.close();
+
+
+
+                socket.close();
+
+                Log.i(MainActivity.LOG_TAG, MainActivity.Sensors);
+
+            } catch (Exception e) {
+                Log.i(LOG_TAG," "+ e );
+
+            }
+
 
 
     }
